@@ -3,16 +3,14 @@ use crate::fact::Fact;
 
 use std::error::Error;
 
-use opencv::{
-    aruco,
-    highgui,
-    prelude::*,
-    types::{VectorOfVectorOfPoint2f, VectorOfi32},
-    videoio,
-};
+use std::sync::{mpsc, Arc, Mutex};
+use std::{thread, time::Duration};
+
+use opencv::{highgui, prelude::*};
 
 pub mod database;
 pub mod fact;
+pub mod vision;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut db = Database::new();
@@ -31,43 +29,53 @@ fn main() -> Result<(), Box<dyn Error>> {
     db.retract("fox is $");
     db.print();
 
-    highgui::named_window("window", highgui::WINDOW_FULLSCREEN)?;
-    // Open the web-camera (assuming you have one)
-    let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY)?;
-    let mut frame = Mat::default(); // This array will store the web-cam data
-    let mut dictionary =
-        aruco::get_predefined_dictionary(aruco::PREDEFINED_DICTIONARY_NAME::DICT_6X6_1000)?;
-    let mut corners = VectorOfVectorOfPoint2f::default();
-    let mut ids = VectorOfi32::default();
-    let detector_parameters = aruco::DetectorParameters::default()?;
-    let detector_parameters_ptr = opencv::core::Ptr::new(detector_parameters);
-    let mut rejected_img_points = VectorOfVectorOfPoint2f::default();
-    // let mut dst_img = opencv::core::Mat::default();
-    // Read the camera
-    // and display in the window
+    let shared_frame = Arc::new(Mutex::new(Mat::default()));
+    let main_frame = Arc::clone(&shared_frame);
+
+    let (tx, rx) = mpsc::channel::<Vec<vision::SeenProgram>>();
+
+    let vision_handle = vision::run_vision(&shared_frame, tx);
+
+    highgui::named_window("window", highgui::WINDOW_FULLSCREEN).unwrap();
     loop {
-        cam.read(&mut frame)?;
-        aruco::detect_markers(
-            &frame,
-            &dictionary,
-            &mut corners,
-            &mut ids,
-            &detector_parameters_ptr,
-            &mut rejected_img_points,
-        )?;
-        aruco::draw_detected_markers(
-            &mut frame,
-            &corners,
-            &ids,
-            opencv::core::VecN([0., 0., 255., 255.]),
-        )?;
-        println!("{:?}", ids);
-        highgui::imshow("window", &frame)?;
-        let key = highgui::wait_key(1)?;
+        // TODO: handle slow rx where the video feed produces events faster than we consume them.
+        // TODO: use a single_value_channel
+        if let Ok(seen_programs) = rx.recv() {
+            // println!("---{:?}", seen_programs);
+            db.retract("#0cv %");
+            for p in seen_programs.iter() {
+                db.claim(Fact::from_string(
+                    format!(
+                        "#0cv program {} at {} {} {} {} {} {} {} {}",
+                        p.id,
+                        p.corner1.x,
+                        p.corner1.y,
+                        p.corner2.x,
+                        p.corner2.y,
+                        p.corner3.x,
+                        p.corner3.y,
+                        p.corner4.x,
+                        p.corner4.y
+                    )
+                    .as_str(),
+                ));
+            }
+        }
+        let frame = main_frame.lock().unwrap();
+        if frame.rows() > 0 {
+            highgui::imshow("window", &*frame).unwrap();
+        } else {
+            println!("waiting for camera to give a frame")
+        }
+        drop(frame);
+        let key = highgui::wait_key(1).unwrap();
         if key == 113 {
             // quit with q
             break;
         }
+        thread::sleep(Duration::from_millis(16));
     }
+
+    vision_handle.join().unwrap();
     Ok(())
 }
