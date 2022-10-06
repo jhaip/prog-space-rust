@@ -11,6 +11,7 @@ use opencv::{highgui, prelude::*};
 pub mod database;
 pub mod fact;
 pub mod vision;
+pub mod source_code;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut db = Database::new();
@@ -28,6 +29,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     db.retract("fox is $");
     db.print();
+
+    let mut source_code_manager = source_code::SourceCodeManager::new("../../scripts/".to_string());
+    source_code_manager.init(&mut db);
 
     let shared_frame = Arc::new(Mutex::new(Mat::default()));
     let main_frame = Arc::clone(&shared_frame);
