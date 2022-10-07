@@ -2,32 +2,21 @@ use crate::fact::{Fact, Term};
 
 #[derive(Clone, Debug)]
 pub struct QueryResultVariable {
-    variable_name: String,
-    term: Term,
+    pub variable_name: String,
+    pub term: Term,
 }
 
 #[derive(Clone, Debug)]
 pub struct QueryResult {
-    result: Vec<QueryResultVariable>,
-}
-
-struct Subscription {
-    program_source_id: String,
-    query_parts: Vec<String>,
-    // TODO: callback function
-    last_results: Vec<QueryResult>,
+    pub result: Vec<QueryResultVariable>,
 }
 
 pub struct Database {
     facts: Vec<Fact>,
-    subscriptions: Vec<Subscription>,
 }
 impl Database {
     pub fn new() -> Self {
-        Database {
-            facts: vec![],
-            subscriptions: vec![],
-        }
+        Database { facts: vec![] }
     }
 
     pub fn print(&self) {
@@ -35,10 +24,6 @@ impl Database {
         self.facts
             .iter()
             .for_each(|f| println!("{}", f.to_string()));
-        println!("SUBSCRIPTIONS:");
-        self.subscriptions
-            .iter()
-            .for_each(|s| println!("{}", s.program_source_id));
     }
 
     pub fn claim(&mut self, fact: Fact) {

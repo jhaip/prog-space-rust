@@ -18,7 +18,7 @@ impl Term {
         }
     }
 
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         match &self {
             Term::Text(text) => text.to_owned(),
             Term::Id(text) => "#".to_string() + &text,
