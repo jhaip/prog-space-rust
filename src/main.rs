@@ -8,10 +8,12 @@ use std::{thread, time::Duration};
 
 use opencv::{highgui, prelude::*};
 
+use std::time::Instant;
+
 pub mod database;
 pub mod fact;
-pub mod vision;
 pub mod source_code;
+pub mod vision;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut db = Database::new();
@@ -32,6 +34,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut source_code_manager = source_code::SourceCodeManager::new("../../scripts/".to_string());
     source_code_manager.init(&mut db);
+    let start = Instant::now();
+    source_code_manager.update(&mut db);
+    let duration = start.elapsed();
+    println!("Time elapsed in expensive_function() is: {:?}", duration);
 
     let shared_frame = Arc::new(Mutex::new(Mat::default()));
     let main_frame = Arc::clone(&shared_frame);

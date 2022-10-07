@@ -81,15 +81,13 @@ impl SourceCodeManager {
 
         // self.init_lua_state(db);
 
-        // // run boot program automatically
+        // run boot program automatically
         self.run_program(0, db);
         self.run_program(1, db);
         self.run_program(2, db);
+    }
 
-        // db.print();
-
-        println!("{:?}", self.subscriptions);
-
+    pub fn update(&mut self, db: &mut Database) {
         self.run_subscriptions(db);
     }
 
