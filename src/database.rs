@@ -1,4 +1,5 @@
 use crate::fact::{Fact, Term};
+use mlua::RegistryKey;
 
 #[derive(Clone, Debug)]
 pub struct QueryResultVariable {
@@ -11,12 +12,38 @@ pub struct QueryResult {
     pub result: Vec<QueryResultVariable>,
 }
 
+#[derive(Debug)]
+pub struct Subscription {
+    pub program_source_id: String,
+    pub query_parts: Vec<String>,
+    pub callback_func: RegistryKey,
+    pub last_results: Vec<QueryResult>,
+}
+impl Subscription {
+    pub fn new(
+        program_source_id: &String,
+        query_parts: &Vec<String>,
+        callback_func: RegistryKey,
+    ) -> Self {
+        Subscription {
+            program_source_id: program_source_id.to_owned(),
+            query_parts: query_parts.to_owned(),
+            callback_func,
+            last_results: vec![],
+        }
+    }
+}
+
 pub struct Database {
     facts: Vec<Fact>,
+    pub subscriptions: Vec<Subscription>,
 }
 impl Database {
     pub fn new() -> Self {
-        Database { facts: vec![] }
+        Database {
+            facts: vec![],
+            subscriptions: vec![],
+        }
     }
 
     pub fn print(&self) {

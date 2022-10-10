@@ -15,8 +15,14 @@ pub mod fact;
 pub mod source_code;
 pub mod vision;
 
+use lazy_static::lazy_static;
+
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut db = Database::new();
+    lazy_static! {
+        static ref static_db: Mutex<Database> = Mutex::new(Database::new());
+    }
+    let mut db = static_db.lock().unwrap();
+    // let mut db = Database::new();
     db.claim(Fact::from_string("fox is red"));
     db.claim(Fact::from_string("rock is red"));
     db.print();
@@ -32,12 +38,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     db.retract("fox is $");
     db.print();
 
+    std::mem::drop(db);
+
     let mut source_code_manager = source_code::SourceCodeManager::new("../../scripts/".to_string());
-    source_code_manager.init(&mut db);
+    // source_code_manager.init(&mut db);
+    source_code_manager.init(&static_db);
     let start = Instant::now();
-    source_code_manager.update(&mut db);
+    source_code_manager.update(&static_db);
     let duration = start.elapsed();
     println!("Time elapsed in expensive_function() is: {:?}", duration);
+    static_db.lock().unwrap().print();
 
     let shared_frame = Arc::new(Mutex::new(Mat::default()));
     let main_frame = Arc::clone(&shared_frame);
@@ -47,6 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let vision_handle = vision::run_vision(&shared_frame, tx);
 
     highgui::named_window("window", highgui::WINDOW_FULLSCREEN).unwrap();
+    let mut db = static_db.lock().unwrap();
     loop {
         // TODO: handle slow rx where the video feed produces events faster than we consume them.
         // TODO: use a single_value_channel
