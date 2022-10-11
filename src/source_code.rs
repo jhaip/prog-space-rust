@@ -1,19 +1,47 @@
-use crate::database::{Database, QueryResult, Subscription};
+use crate::database::{Database, Subscription};
 use crate::fact::{Fact, Term};
+use crate::illumination::Illumination;
 
 use lazy_static::lazy_static;
-use mlua::{prelude::*, Function, Lua, RegistryKey, Table, Variadic};
+use mlua::{prelude::*, Function, Lua, RegistryKey, Table, Variadic, Value, Result, Error as LuaError};
 use regex::Regex;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 
 // enum ProgramUpdate {
 //     Claim(String),
 //     Retract(String),
 //     Cleanup(),
 // }
+
+impl<'lua> FromLua<'lua> for Fact {
+    #[inline]
+    fn from_lua(lua_value: Value<'lua>, _: &'lua Lua) -> Result<Self> {
+        println!("LUA VALUE TYPE::: {:?}", lua_value.type_name());
+        match lua_value {
+            mlua::Value::String(v) => Ok(Fact::from_string(v.to_str().unwrap())),
+            mlua::Value::Table(t) => {
+                match t.get(1).unwrap() {
+                    mlua::Value::String(fact_type) => {
+                        let fact_type = fact_type.to_str().unwrap();
+                        match fact_type {
+                            "" | "text" => Ok(Fact::from_terms(&vec![Term::Text(t.get(2).unwrap())][..])),
+                            "id" => Ok(Fact::from_terms(&vec![Term::Id(t.get(2).unwrap())][..])),
+                            "variable" => Ok(Fact::from_terms(&vec![Term::Variable(t.get(2).unwrap())][..])),
+                            "postfix" => Ok(Fact::from_terms(&vec![Term::Postfix(t.get(2).unwrap())][..])),
+                            _ => Err(LuaError::RuntimeError("TODO error converting, bad fact from lua, case 3".to_string()))
+                        }
+                        
+                    },
+                    _ => Err(LuaError::RuntimeError("TODO error converting, bad fact from lua, case 2".to_string()))
+                }
+            },
+            _ => Err(LuaError::RuntimeError("TODO error converting, bad fact from lua".to_string()))
+        }
+    }
+}
 
 pub struct SourceCodeManager {
     source_code_folder_path: String,
@@ -75,6 +103,10 @@ impl SourceCodeManager {
         self.run_program(0, &static_db);
         self.run_program(1, &static_db);
         self.run_program(2, &static_db);
+        self.run_program(3, &static_db);
+        self.run_program(4, &static_db);
+        self.run_program(5, &static_db);
+        self.run_program(6, &static_db);
     }
 
     pub fn update(&mut self, static_db: &'static Mutex<Database>) {
@@ -228,18 +260,16 @@ impl SourceCodeManager {
 
             let claim = self
                 .lua_state
-                .create_function_mut(move |_, va: Variadic<String>| {
+                .create_function_mut(move |_, va: Variadic<Fact>| {
                     let mut db = static_db.lock().unwrap();
-                    if let Some(fact_string) = va.first() {
-                        let mut f = Fact::from_string(&fact_string);
-                        f.terms.insert(0, Term::Id(program_id.to_string()));
-                        db.claim(f);
-                        std::mem::drop(db);
-                    } else {
-                        // TODO: handle variadic input so programs can claim raw types of data
-                        // maybe by defining a type that accepts both a string or a table and implments to ToLua trait
-                        println!("unhandle empty or non-string input to claim function from lua");
+                    let mut fact_to_claim = Fact { terms: vec![Term::Id(program_id.to_string())] };
+                    for f in va.iter() {
+                        for term in f.terms.iter() {
+                            fact_to_claim.terms.push(term.clone());
+                        }
                     }
+                    db.claim(fact_to_claim);
+                    std::mem::drop(db);
                     Ok(())
                 })
                 .unwrap();
@@ -309,6 +339,10 @@ impl SourceCodeManager {
             //         }).unwrap()
             //     },
             // ).unwrap();
+
+            // let illumination_constructor = self.lua_state.create_function_mut(|_, ()| Ok(Illumination { graphics: vec![] })).unwrap();
+            // self.lua_state.globals().set("Illumination", illumination_constructor).unwrap();
+            self.lua_state.globals().set("Illumination", self.lua_state.create_proxy::<Illumination>().unwrap()).unwrap();
 
             // self.run_lua(&program_id.to_string(), db, || self.lua_state.load(source_code).exec());
             self.lua_state.load(source_code).exec().unwrap();

@@ -14,6 +14,7 @@ pub mod database;
 pub mod fact;
 pub mod source_code;
 pub mod vision;
+pub mod illumination;
 
 use lazy_static::lazy_static;
 
