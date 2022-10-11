@@ -139,4 +139,9 @@ impl Database {
         let query: Vec<Fact> = query_parts.iter().map(|p| Fact::from_string(p)).collect();
         return self.collect_solutions(&query[..], &QueryResult { result: vec![] });
     }
+
+    pub fn remove_subscriptions_by_program(&mut self, program_source_id: &String) {
+        self.subscriptions
+            .retain(|sub| sub.program_source_id.ne(program_source_id))
+    }
 }

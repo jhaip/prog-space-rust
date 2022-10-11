@@ -278,7 +278,6 @@ impl SourceCodeManager {
             let retract = self
                 .lua_state
                 .create_function_mut(|_, fact_string: String| {
-                    println!("retract waiting for db");
                     let mut db = static_db.lock().unwrap();
                     db.retract(&fact_string);
                     std::mem::drop(db);
@@ -286,6 +285,18 @@ impl SourceCodeManager {
                 })
                 .unwrap();
             self.lua_state.globals().set("retract", retract).unwrap();
+
+            let cleanup = self
+                .lua_state
+                .create_function_mut(move |_, ()| {
+                    let mut db = static_db.lock().unwrap();
+                    db.retract(&format!("${} %", program_id));
+                    db.remove_subscriptions_by_program(&program_id.to_string());
+                    std::mem::drop(db);
+                    Ok(())
+                })
+                .unwrap();
+            self.lua_state.globals().set("cleanup", cleanup).unwrap();
 
             // This function probaby doesn't need to be within a scope?
             let when_func = self
