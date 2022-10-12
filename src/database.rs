@@ -151,7 +151,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exploration() {
+    fn claim_tests() {
         let mut db = Database::new();
         db.claim(Fact::from_string("fox is red"));
         db.claim(Fact::from_string("rock is red"));
