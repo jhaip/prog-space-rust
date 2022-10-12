@@ -34,58 +34,62 @@ mod tests {
         db.claim(Fact::from_string("fox is red"));
         db.claim(Fact::from_string("rock is red"));
         db.print();
-        let q1 = db.select(&vec!["$x is red".to_string()]).iter();
+        let q1 = db.select(&vec!["$x is red".to_string()]);
+        let mut q1 = q1.iter();
         assert_eq!(
-            q1.next(),
-            QueryResult {
+            q1.next().unwrap(),
+            &QueryResult {
                 result: vec![QueryResultVariable {
                     variable_name: "x".to_string(),
-                    term: Term::String("fox")
+                    term: Term::Text("fox".to_string())
                 }]
             }
         );
         assert_eq!(
-            q1.next(),
-            QueryResult {
+            q1.next().unwrap(),
+            &QueryResult {
                 result: vec![QueryResultVariable {
                     variable_name: "x".to_string(),
-                    term: Term::String("rock")
+                    term: Term::Text("rock".to_string())
                 }]
             }
         );
 
-        let q2 = db.select(&vec!["fox is $".to_string()]).iter();
-        assert_eq!(q2.next(), QueryResult { result: vec![] });
+        let q2 = db.select(&vec!["fox is $".to_string()]);
+        let mut q2 = q2.iter();
+        assert_eq!(q2.next().unwrap(), &QueryResult { result: vec![] });
 
-        let q3 = db.select(&vec!["%fact".to_string()]).iter();
+        let q3 = db.select(&vec!["%fact".to_string()]);
+        let mut q3 = q3.iter();
         assert_eq!(
-            q3.next(),
-            QueryResult {
+            q3.next().unwrap(),
+            &QueryResult {
                 result: vec![QueryResultVariable {
                     variable_name: "fact".to_string(),
-                    term: Term::String("fox is red")
+                    term: Term::Text("fox is red".to_string())
                 }]
             }
         );
         assert_eq!(
-            q3.next(),
-            QueryResult {
+            q3.next().unwrap(),
+            &QueryResult {
                 result: vec![QueryResultVariable {
                     variable_name: "fact".to_string(),
-                    term: Term::String("rock is red")
+                    term: Term::Text("rock is red".to_string())
                 }]
             }
         );
 
         db.retract("fox is $");
 
-        let q4 = db.select(&vec!["$x is red".to_string()]).iter();
+        let q4 = db.select(&vec!["$x is red".to_string()]);
+        let mut q4 = q4.iter();
         assert_eq!(
-            q4.next(),
-            QueryResult {
+            q4.next().unwrap(),
+            &QueryResult {
                 result: vec![QueryResultVariable {
                     variable_name: "x".to_string(),
-                    term: Term::String("rock")
+                    term: Term::Text("rock".to_string())
                 }]
             }
         );
@@ -101,6 +105,7 @@ struct Model {
 
 fn main() {
     nannou::app(model)
+        .loop_mode(LoopMode::rate_fps(60.0))
         .update(update)
         .exit(exit)
         .simple_window(view)
@@ -139,12 +144,14 @@ fn model(_app: &App) -> Model {
 }
 
 fn update(_app: &App, _model: &mut Model, _update: Update) {
-    println!("FPS: {}", _app.fps());
+    if _app.elapsed_frames() % 10 == 0 {
+        println!("FPS: {}", _app.fps());
+    }
 }
 
 fn view(_app: &App, _model: &Model, _frame: Frame) {
-    _frame.clear(BLACK);
     let draw = _app.draw();
+    draw.background().color(WHITE);
 
     // TODO: handle slow rx where the video feed produces events faster than we consume them.
     // TODO: use a single_value_channel

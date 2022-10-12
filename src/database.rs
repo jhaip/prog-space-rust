@@ -1,13 +1,13 @@
 use crate::fact::{Fact, Term};
 use mlua::RegistryKey;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QueryResultVariable {
     pub variable_name: String,
     pub term: Term,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QueryResult {
     pub result: Vec<QueryResultVariable>,
 }
